@@ -85,14 +85,22 @@ void comms_can_write(const uint8_t *data, uint32_t len) {
   if (can_write_buffer.ptr != 0U) {
     if (can_write_buffer.tail_size <= (len - pos)) {
       // we have enough data to complete the buffer
-      CANPacket_t to_push = {0};
       (void)memcpy(&can_write_buffer.data[can_write_buffer.ptr], &data[pos], can_write_buffer.tail_size);
       can_write_buffer.ptr += can_write_buffer.tail_size;
       pos += can_write_buffer.tail_size;
 
-      // send out
-      (void)memcpy((uint8_t*)&to_push, can_write_buffer.data, can_write_buffer.ptr);
-      can_send(&to_push, to_push.bus, false);
+      // send out. Same bound as the one below, and this is the path that
+      // actually matters on a classic build: a full wire packet is 70 bytes and
+      // the USB endpoint is 64, so an oversized packet can never fit in one host
+      // chunk and always arrives here rather than below. The 72 byte assembly
+      // buffer holds it fine, to_push is what would overflow.
+      if (can_write_buffer.ptr > (CANPACKET_HEAD_SIZE + CANPACKET_DATA_SIZE_MAX)) {
+        tx_buffer_overflow += 1U;
+      } else {
+        CANPacket_t to_push = {0};
+        (void)memcpy((uint8_t*)&to_push, can_write_buffer.data, can_write_buffer.ptr);
+        can_send(&to_push, to_push.bus, false);
+      }
 
       // reset overflow buffer
       can_write_buffer.ptr = 0U;
@@ -116,7 +124,7 @@ void comms_can_write(const uint8_t *data, uint32_t len) {
       // host packet claiming more would run off the end of to_push. Upstream
       // never bounded this because the host and the panda always agreed on the
       // size; they no longer do on an F4.
-      if (data_len > CANPACKET_DATA_SIZE_MAX) {
+      if (pckt_len > (CANPACKET_HEAD_SIZE + CANPACKET_DATA_SIZE_MAX)) {
         tx_buffer_overflow += 1U;
       } else {
         CANPacket_t to_push = {0};
