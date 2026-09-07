@@ -30,7 +30,11 @@ static int get_health_pkt(void *dat) {
   health->safety_param_pkt = current_safety_param;
   health->alternative_experience_pkt = alternative_experience;
 
-  health->spi_error_count_pkt = spi_error_count;
+  #ifdef STM32F4
+    health->spi_error_count_pkt = 0U;
+  #else
+    health->spi_error_count_pkt = spi_error_count;
+  #endif
 
   health->fault_status_pkt = fault_status;
   health->faults_pkt = faults;
