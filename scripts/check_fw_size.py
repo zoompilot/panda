@@ -16,7 +16,11 @@ def check_space(file, mcu):
     },
     "F4": {
       ".flash": 1024*1024, # FLASH
-      ".dtcmram": 256*1024, # RAM
+      # NOT the 256K RAM region. The stack starts at _estack = 0x2001FFFC and
+      # grows down, and enter_bootloader_mode lives at that same address, so
+      # data+bss must end below it. Measuring against the whole region is what
+      # let .bss overrun the stack and land inside the CAN rx ring unnoticed.
+      ".dtcmram": 0x2001FFFC - 0x20000000, # usable RAM below _estack
       ".ram_d1": 64*1024, # RAM2
     },
   }
@@ -73,13 +77,18 @@ def check_space(file, mcu):
       calcs[line] += int(result[line][0], 16)
 
   print(f"=======SUMMARY FOR {mcu} FILE {file}=======")
+  over = []
   for line in calcs:
     if line in MCUS[mcu]:
       used_percent = (100 - (MCUS[mcu][line] - calcs[line]) / MCUS[mcu][line] * 100)
       print(f"SECTION: {line} size: {MCUS[mcu][line]} USED: {calcs[line]}({used_percent:.2f}%) FREE: {MCUS[mcu][line] - calcs[line]}")
+      if calcs[line] > MCUS[mcu][line]:
+        over.append(f"{line}: {calcs[line]} > {MCUS[mcu][line]}")
     else:
       print(line, calcs[line])
   print()
+  if over:
+    raise SystemExit(f"{file} does not fit on {mcu}: " + ", ".join(over))
 
 
 if __name__ == "__main__":
