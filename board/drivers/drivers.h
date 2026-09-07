@@ -127,14 +127,10 @@ void can_rx(uint8_t can_number);
 
 #elif defined(STM32F4)
 
-extern CAN_TypeDef *cans[CAN_ARRAY_SIZE];
-
 void can_clear_send(CAN_TypeDef *CANx, uint8_t can_number);
 void update_can_health_pkt(uint8_t can_number, uint32_t ir_reg);
 
-void process_can(uint8_t can_number);
 void can_rx(uint8_t can_number);
-bool can_init(uint8_t can_number);
 
 #endif
 

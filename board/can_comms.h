@@ -117,8 +117,7 @@ void comms_can_write(const uint8_t *data, uint32_t len) {
 
   // rest of the message
   while (pos < len) {
-    uint8_t data_len = dlc_to_len[(data[pos] >> 4U)];
-    uint32_t pckt_len = CANPACKET_HEAD_SIZE + data_len;
+    uint32_t pckt_len = CANPACKET_HEAD_SIZE + dlc_to_len[(data[pos] >> 4U)];
     if ((pos + pckt_len) <= len) {
       // On a classic build CANPacket_t only has room for 8 data bytes, so a
       // host packet claiming more would run off the end of to_push. Upstream

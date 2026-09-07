@@ -62,7 +62,10 @@ cppcheck() {
 PANDA_OPTS="--enable=all --disable=unusedFunction --addon=misra"
 
 printf "\n${GREEN}** PANDA F4 CODE **${NC}\n"
-cppcheck $PANDA_OPTS -DSTM32F4 -DSTM32F413xx -I $PANDA_DIR/board/stm32f4/inc/ $PANDA_DIR/board/main.c
+# board/stm32f4/inc/ has no CMSIS headers of its own; core_cm4.h picks them up
+# from board/stm32h7/inc/ through the compiler's CPPPATH, so cppcheck needs it
+# too or every __disable_irq and register accessor reads as an implicit decl.
+cppcheck $PANDA_OPTS -DSTM32F4 -DSTM32F413xx -I $PANDA_DIR/board/stm32f4/inc/ -I $PANDA_DIR/board/stm32h7/inc/ $PANDA_DIR/board/main.c
 
 printf "\n${GREEN}** PANDA H7 CODE **${NC}\n"
 cppcheck $PANDA_OPTS -DSTM32H7 -DSTM32H725xx -I $PANDA_DIR/board/stm32h7/inc/ $PANDA_DIR/board/main.c
