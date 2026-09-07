@@ -109,7 +109,13 @@ void process_can(uint8_t can_number) {
       }
 
       if (can_pop(can_queues[bus_number], &to_send)) {
-        if (can_check_checksum(&to_send)) {
+        // bxCAN is classic CAN only. A data length code above 8 has no
+        // representation here, and writing the raw code into TDTR would put a
+        // malformed frame on the bus. A CAN FD safety model can still be
+        // selected on a dos, so drop the frame rather than transmit it.
+        if (to_send.data_len_code > 8U) {
+          can_health[can_number].total_tx_lost_cnt += 1U;
+        } else if (can_check_checksum(&to_send)) {
           can_health[can_number].total_tx_cnt += 1U;
           // only send if we have received a packet
           CANx->sTxMailBox[0].TIR = ((to_send.extended != 0U) ? (to_send.addr << 3) : (to_send.addr << 21)) | (to_send.extended << 2);
