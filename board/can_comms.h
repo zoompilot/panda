@@ -109,11 +109,20 @@ void comms_can_write(const uint8_t *data, uint32_t len) {
 
   // rest of the message
   while (pos < len) {
-    uint32_t pckt_len = CANPACKET_HEAD_SIZE + dlc_to_len[(data[pos] >> 4U)];
+    uint8_t data_len = dlc_to_len[(data[pos] >> 4U)];
+    uint32_t pckt_len = CANPACKET_HEAD_SIZE + data_len;
     if ((pos + pckt_len) <= len) {
-      CANPacket_t to_push = {0};
-      (void)memcpy((uint8_t*)&to_push, &data[pos], pckt_len);
-      can_send(&to_push, to_push.bus, false);
+      // On a classic build CANPacket_t only has room for 8 data bytes, so a
+      // host packet claiming more would run off the end of to_push. Upstream
+      // never bounded this because the host and the panda always agreed on the
+      // size; they no longer do on an F4.
+      if (data_len > CANPACKET_DATA_SIZE_MAX) {
+        tx_buffer_overflow += 1U;
+      } else {
+        CANPacket_t to_push = {0};
+        (void)memcpy((uint8_t*)&to_push, &data[pos], pckt_len);
+        can_send(&to_push, to_push.bus, false);
+      }
       pos += pckt_len;
     } else {
       (void)memcpy(can_write_buffer.data, &data[pos], len - pos);

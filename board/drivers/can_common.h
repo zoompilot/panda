@@ -18,18 +18,11 @@ bool can_loopback = false;
   can_ring can_##x = { .w_ptr = 0, .r_ptr = 0, .fifo_size = (size), .elems = (CANPacket_t *)&(elems_##x) };
 
 #ifdef STM32F4
-  // The F413 stack starts at _estack = 0x2001FFFC, which is also where
-  // enter_bootloader_mode lives, so .bss has to end below 128K and the stack
-  // cannot simply be moved up into the F413's second 128K.
-  //
-  // CANPacket_t is 72 bytes now that opendbc fixes the data field at 64, where
-  // the F4 used to build it at 16. At the old 1024/256 depths the rings alone
-  // are 129024 bytes and .bss runs 66564 bytes past _estack, putting the stack
-  // inside elems_rx_q. These depths keep .bss clear of it with room to spare.
-  // A bxCAN board can never receive more than 8 data bytes, so most of each
-  // packet is padding; depth in frames matters, bytes do not.
-  #define CAN_RX_BUFFER_SIZE 384U
-  #define CAN_TX_BUFFER_SIZE 96U
+  // CANPacket_t is 16 bytes here, because opendbc sizes the data field for a
+  // classic controller on this target. These are the depths upstream ran on a
+  // dos and they fit well clear of the stack.
+  #define CAN_RX_BUFFER_SIZE 1024U
+  #define CAN_TX_BUFFER_SIZE 256U
 #else
   #define CAN_RX_BUFFER_SIZE 4096U
   #define CAN_TX_BUFFER_SIZE 416U
