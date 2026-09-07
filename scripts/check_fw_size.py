@@ -14,6 +14,11 @@ def check_space(file, mcu):
       ".sram4": 16*1024, # SRAM4
       ".backup_sram": 4*1024, # SRAM4
     },
+    "F4": {
+      ".flash": 1024*1024, # FLASH
+      ".dtcmram": 256*1024, # RAM
+      ".ram_d1": 64*1024, # RAM2
+    },
   }
   IGNORE_LIST = [
     ".ARM.attributes",
@@ -78,6 +83,9 @@ def check_space(file, mcu):
 
 
 if __name__ == "__main__":
+  # panda (dos)
+  check_space("../board/obj/panda/bootstub.elf", "F4")
+  check_space("../board/obj/panda/main.elf", "F4")
   # panda
   check_space("../board/obj/panda_h7/bootstub.elf", "H7")
   check_space("../board/obj/panda_h7/main.elf", "H7")

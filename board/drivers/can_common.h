@@ -138,6 +138,10 @@ bus_config_t bus_config[PANDA_CAN_CNT] = {
 
 void can_init_all(void) {
   for (uint8_t i=0U; i < PANDA_CAN_CNT; i++) {
+    #ifdef STM32F4
+      // bxCAN is classic CAN only, don't advertise a data phase speed
+      bus_config[i].can_data_speed = 0U;
+    #endif
     bus_config[i].canfd_enabled = false;
     can_clear(can_queues[i]);
     (void)can_init(i);
