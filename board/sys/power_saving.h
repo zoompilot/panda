@@ -53,7 +53,14 @@ void set_power_save_state(bool enable) {
 }
 
 #ifdef STM32F4
-// the F4 has no SOM to power down for; the C3 handles its own shutdown
+// Upstream's F4 power_saving never had a stop mode: the pre-deletion
+// implementation (removed in commaai/panda#2259) only toggles CAN
+// transceivers, interrupts and IR, exactly as set_power_save_state() above.
+// That file also ruled low-power modes out entirely: "SIL2 rules laid out in
+// STM UM1840 ... never implement any of the available hardware low power
+// modes" (CoU_3). The C3's SOM manages its own shutdown, so there is nothing
+// to restore here; the open item is measuring sleep/off current draw on
+// hardware.
 static void enter_stop_mode(void) {}
 #else
 static void enter_stop_mode(void) {
