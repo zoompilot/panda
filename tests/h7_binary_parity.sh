@@ -1,10 +1,15 @@
 #!/usr/bin/env bash
-# Proves a change does not alter the H7 firmware artifacts, so F4/dos work
-# can never silently change the H7 build. Compares HEAD against a base ref:
+# Proves a change does not alter the H7 firmware, so F4/dos work can never
+# silently change the H7 build. Compares HEAD against a base ref:
 #   $1  base ref (default: merge-base with origin/master)
 # CI passes the PR base (pull_request) or the previous tip (push), because
 # long-lived F4 branches intentionally change shared code vs upstream master.
 # Exits nonzero on any difference.
+#
+# The unsigned images are compared, not the .signed ones: the signature covers
+# the baked-in git version, so two otherwise identical trees never sign the
+# same. The version string itself is scrubbed before hashing; it is metadata,
+# not code, and the fixed-length replacement keeps every other byte aligned.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -15,15 +20,19 @@ if [ -z "$BASE_REF" ]; then
   BASE_REF=$(git merge-base HEAD origin/master)
 fi
 
-ARTIFACTS="board/obj/panda_h7.bin.signed board/obj/body_h7.bin.signed board/obj/panda_jungle_h7.bin.signed board/obj/bootstub.panda_h7.bin board/obj/bootstub.body_h7.bin board/obj/bootstub.panda_jungle_h7.bin"
+TARGETS="panda_h7 body_h7 panda_jungle_h7"
 
 hash_tree() {
-  scons -Q -j"$(nproc)" >/dev/null
-  # Scrub the baked-in git version before hashing: it is metadata, not code,
-  # and the base tree may not have any version-pinning hook. Fixed-length
-  # replacement keeps every other byte aligned.
-  for f in $ARTIFACTS; do
-    LC_ALL=C sed 's/DEV-[^-]\{1,10\}-\(DEBUG\|RELEASE\)/DEV-XXXXXXXX-\1/g' "$f" | sha256sum | awk '{print $1}'
+  scons -Q -j"$(nproc 2>/dev/null || sysctl -n hw.ncpu)" >/dev/null
+  for t in $TARGETS; do
+    for f in "board/obj/$t/main.bin" "board/obj/bootstub.$t.bin"; do
+      python3 - "$f" <<'PY'
+import hashlib, re, sys
+dat = open(sys.argv[1], "rb").read()
+dat = re.sub(rb"DEV-[^-\x00]{1,10}-(DEBUG|RELEASE)", lambda m: b"DEV-" + b"X" * (len(m.group(0)) - 4 - len(m.group(1)) - 1) + b"-" + m.group(1), dat)
+print(hashlib.sha256(dat).hexdigest(), sys.argv[1])
+PY
+    done
   done
 }
 
@@ -39,6 +48,6 @@ git worktree add -q --detach "$WT" "$BASE_REF"
 if diff -u "$BASE" "$CUR"; then
   echo "H7 binary parity vs $BASE_REF: PASS"
 else
-  echo "H7 binary parity vs $BASE_REF: FAIL — H7 artifacts changed"
+  echo "H7 binary parity vs $BASE_REF: FAIL, H7 images changed"
   exit 1
 fi
